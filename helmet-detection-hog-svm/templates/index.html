@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SENTINEL — Helmet Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #020408;
+  --panel:    #060d14;
+  --card:     #0a1520;
+  --border:   #0e2a3d;
+  --cyan:     #00f5ff;
+  --green:    #00ff88;
+  --red:      #ff2d55;
+  --amber:    #ffaa00;
+  --text:     #b8d4e8;
+  --dim:      #3a5568;
+  --glow-c:   0 0 20px rgba(0,245,255,0.4);
+  --glow-g:   0 0 20px rgba(0,255,136,0.4);
+  --glow-r:   0 0 20px rgba(255,45,85,0.4);
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Exo 2', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: crosshair;
+}
+
+/* ── Scanline overlay ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,245,255,0.015) 2px,
+    rgba(0,245,255,0.015) 4px
+  );
+  pointer-events: none;
+  z-index: 1000;
+  animation: scanlines 8s linear infinite;
+}
+
+@keyframes scanlines {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 100px; }
+}
+
+/* ── Grid bg ── */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,245,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,245,255,0.04) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Corner brackets ── */
+.corner-tl, .corner-tr, .corner-bl, .corner-br {
+  position: fixed;
+  width: 40px; height: 40px;
+  z-index: 999;
+}
+.corner-tl { top:12px; left:12px;
+  border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.corner-tr { top:12px; right:12px;
+  border-top: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+.corner-bl { bottom:12px; left:12px;
+  border-bottom: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.corner-br { bottom:12px; right:12px;
+  border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+
+/* ── Header ── */
+header {
+  position: relative; z-index: 10;
+  padding: 18px 48px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(2,4,8,0.95);
+  backdrop-filter: blur(20px);
+  display: flex; align-items: center; gap: 20px;
+}
+
+.logo-wrap {
+  position: relative;
+  width: 48px; height: 48px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.logo-hex {
+  width: 48px; height: 48px;
+  background: transparent;
+  border: 2px solid var(--cyan);
+  clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  animation: hex-pulse 3s ease-in-out infinite;
+  box-shadow: var(--glow-c);
+}
+
+@keyframes hex-pulse {
+  0%,100% { box-shadow: var(--glow-c); }
+  50%      { box-shadow: 0 0 40px rgba(0,245,255,0.7); }
+}
+
+.header-text { flex: 1; }
+
+.sys-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: var(--cyan);
+  text-shadow: var(--glow-c);
+}
+
+.sys-sub {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 3px;
+  margin-top: 3px;
+}
+
+.header-right {
+  display: flex; align-items: center; gap: 24px;
+}
+
+.status-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(0,255,136,0.08);
+  border: 1px solid rgba(0,255,136,0.3);
+  padding: 6px 16px; border-radius: 2px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px; color: var(--green);
+  letter-spacing: 2px;
+}
+
+.pulse-dot {
+  width: 8px; height: 8px;
+  background: var(--green);
+  border-radius: 50%;
+  animation: dot-blink 1.2s ease-in-out infinite;
+  box-shadow: 0 0 8px var(--green);
+}
+
+@keyframes dot-blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+.algo-badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--amber);
+  border: 1px solid rgba(255,170,0,0.3);
+  padding: 5px 12px; border-radius: 2px;
+  letter-spacing: 2px;
+  background: rgba(255,170,0,0.05);
+}
+
+/* ── Main ── */
+main {
+  position: relative; z-index: 1;
+  max-width: 1200px; margin: 0 auto;
+  padding: 36px 24px;
+}
+
+/* ── Tab nav ── */
+.nav-tabs {
+  display: flex; gap: 2px; margin-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-tab {
+  padding: 12px 28px;
+  background: transparent;
+  border: none; border-bottom: 2px solid transparent;
+  color: var(--dim);
+  font-family: 'Orbitron', monospace;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 3px;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+}
+
+.nav-tab::before {
+  content: '';
+  position: absolute; bottom: -2px; left: 0; right: 0;
+  height: 2px; background: var(--cyan);
+  transform: scaleX(0);
+  transition: transform 0.3s;
+  box-shadow: var(--glow-c);
+}
+
+.nav-tab.active {
+  color: var(--cyan);
+  border-bottom-color: var(--cyan);
+}
+.nav-tab.active::before { transform: scaleX(1); }
+.nav-tab:not(.active):hover { color: var(--text); }
+
+.tab-icon { font-size: 14px; }
+
+/* ── Panel ── */
+.panel { display: none; animation: fadeIn 0.3s ease; }
+.panel.active { display: block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── Upload zone ── */
+.upload-zone {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 56px 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.4s;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.upload-zone::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg,
+    rgba(0,245,255,0.02) 0%,
+    transparent 50%,
+    rgba(0,245,255,0.02) 100%);
+  opacity: 0; transition: opacity 0.4s;
+}
+
+.upload-zone:hover::before,
+.upload-zone.dragover::before { opacity: 1; }
+
+.upload-zone:hover,
+.upload-zone.dragover {
+  border-color: var(--cyan);
+  box-shadow: inset 0 0 40px rgba(0,245,255,0.05), var(--glow-c);
+}
+
+/* corner accents on upload zone */
+.upload-zone .uc { position:absolute; width:20px; height:20px; }
+.upload-zone .uc.tl { top:8px; left:8px;
+  border-top:1px solid var(--cyan); border-left:1px solid var(--cyan); }
+.upload-zone .uc.tr { top:8px; right:8px;
+  border-top:1px solid var(--cyan); border-right:1px solid var(--cyan); }
+.upload-zone .uc.bl { bottom:8px; left:8px;
+  border-bottom:1px solid var(--cyan); border-left:1px solid var(--cyan); }
+.upload-zone .uc.br { bottom:8px; right:8px;
+  border-bottom:1px solid var(--cyan); border-right:1px solid var(--cyan); }
+
+.upload-zone input { display:none; }
+
+.upload-icon-wrap {
+  width: 72px; height: 72px; margin: 0 auto 24px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  background: var(--card);
+  position: relative;
+}
+
+.upload-icon-wrap::after {
+  content: '';
+  position: absolute; inset: -4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: linear-gradient(var(--card), var(--card)) padding-box,
+              linear-gradient(135deg, var(--cyan), transparent) border-box;
+  opacity: 0.5;
+}
+
+.upload-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 2px; color: var(--text);
+  margin-bottom: 10px;
+}
+
+.upload-sub {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px; color: var(--dim);
+  letter-spacing: 1px;
+}
+
+.fmt-row {
+  margin-top: 20px;
+  display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+}
+
+.fmt {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--dim);
+  border: 1px solid var(--border);
+  padding: 3px 10px; border-radius: 2px;
+  background: var(--card);
+  letter-spacing: 1px;
+}
+
+/* ── File selected ── */
+.file-info {
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: rgba(0,245,255,0.04);
+  border: 1px solid rgba(0,245,255,0.15);
+  border-radius: 2px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px; color: var(--cyan);
+  letter-spacing: 1px;
+  display: none;
+}
+.file-info.visible { display: block; }
+
+/* ── Scan button ── */
+.btn-scan {
+  margin-top: 16px; width: 100%;
+  padding: 16px;
+  background: transparent;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font-family: 'Orbitron', monospace;
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative; overflow: hidden;
+  display: none;
+  clip-path: polygon(8px 0%,100% 0%,100% calc(100% - 8px),calc(100% - 8px) 100%,0% 100%,0% 8px);
+}
+
+.btn-scan::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--cyan);
+  transform: translateX(-100%);
+  transition: transform 0.3s;
+  opacity: 0.08;
+}
+
+.btn-scan:hover::before { transform: translateX(0); }
+.btn-scan:hover { box-shadow: var(--glow-c); }
+.btn-scan.visible { display: block; }
+.btn-scan:disabled { opacity: 0.4; cursor: wait; }
+
+/* ── Progress ── */
+.scan-progress {
+  margin-top: 16px; display: none;
+}
+.scan-progress.visible { display: block; }
+
+.progress-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+
+.progress-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--cyan); letter-spacing: 2px;
+}
+
+.progress-pct {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px; color: var(--cyan);
+}
+
+.progress-track {
+  height: 3px; background: var(--border); border-radius: 1px; overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--green));
+  box-shadow: var(--glow-c);
+  transition: width 0.4s;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%,100% { opacity:1 } 50% { opacity:0.6 }
+}
+
+/* ── Result grid ── */
+.result-wrap {
+  margin-top: 28px; display: none;
+}
+.result-wrap.visible { display: block; }
+
+.result-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px; align-items: start;
+}
+
+/* Image display */
+.result-display {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 4px; overflow: hidden;
+  background: var(--panel);
+}
+
+.result-display img,
+.result-display video {
+  width: 100%; display: block;
+}
+
+.result-overlay-label {
+  position: absolute; top: 12px; left: 12px;
+  background: rgba(2,4,8,0.85);
+  border: 1px solid var(--cyan);
+  padding: 4px 12px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--cyan);
+  letter-spacing: 2px;
+  backdrop-filter: blur(8px);
+}
+
+/* Stats panel */
+.stats-panel { display: flex; flex-direction: column; gap: 12px; }
+
+.stat-block {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 18px 20px;
+  position: relative; overflow: hidden;
+}
+
+.stat-block::before {
+  content: '';
+  position: absolute; top:0; left:0;
+  width: 3px; height: 100%;
+}
+
+.stat-block.s-green::before { background: var(--green); }
+.stat-block.s-red::before   { background: var(--red); }
+.stat-block.s-cyan::before  { background: var(--cyan); }
+
+.stat-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--dim);
+  letter-spacing: 3px; text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-family: 'Orbitron', monospace;
+  font-size: 48px; font-weight: 900;
+  line-height: 1;
+}
+
+.stat-block.s-green .stat-value {
+  color: var(--green);
+  text-shadow: 0 0 20px rgba(0,255,136,0.5);
+}
+
+.stat-block.s-red .stat-value {
+  color: var(--red);
+  text-shadow: 0 0 20px rgba(255,45,85,0.5);
+}
+
+.stat-block.s-cyan .stat-value {
+  color: var(--cyan);
+  text-shadow: 0 0 20px rgba(0,245,255,0.5);
+}
+
+.stat-unit {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--dim);
+  margin-top: 4px; letter-spacing: 1px;
+}
+
+/* Download button */
+.btn-dl {
+  display: block; text-decoration: none;
+  padding: 12px 16px; margin-top: 4px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px; letter-spacing: 2px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.btn-dl:hover {
+  border-color: var(--green);
+  color: var(--green);
+  box-shadow: var(--glow-g);
+}
+
+/* ── Webcam ── */
+.webcam-container {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 4px; overflow: hidden;
+  background: var(--panel);
+  min-height: 420px;
+}
+
+.webcam-idle {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px;
+}
+
+/* Radar animation */
+.radar-wrap {
+  position: relative;
+  width: 120px; height: 120px;
+}
+
+.radar-circle {
+  position: absolute; inset: 0;
+  border: 1px solid rgba(0,245,255,0.2);
+  border-radius: 50%;
+}
+
+.radar-inner {
+  position: absolute;
+  inset: 20px;
+  border: 1px solid rgba(0,245,255,0.3);
+  border-radius: 50%;
+}
+
+.radar-sweep {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(0,245,255,0.3) 60deg,
+    transparent 61deg
+  );
+  animation: radar-spin 3s linear infinite;
+}
+
+@keyframes radar-spin { to { transform: rotate(360deg); } }
+
+.radar-dot {
+  position: absolute;
+  width: 6px; height: 6px;
+  background: var(--cyan);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--cyan);
+}
+.radar-dot:nth-child(1) { top:20%; left:60%; }
+.radar-dot:nth-child(2) { top:55%; left:25%; }
+.radar-dot:nth-child(3) { top:70%; left:70%; }
+
+.radar-crosshair-h,
+.radar-crosshair-v {
+  position: absolute;
+  background: rgba(0,245,255,0.15);
+}
+.radar-crosshair-h { top:50%; left:0; right:0; height:1px; transform:translateY(-50%); }
+.radar-crosshair-v { left:50%; top:0; bottom:0; width:1px; transform:translateX(-50%); }
+
+.webcam-idle-text {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px; color: var(--dim);
+  letter-spacing: 2px; text-align: center;
+}
+
+#webcam-feed { width:100%; display:block; }
+
+.live-badge {
+  position: absolute; top:14px; left:14px;
+  background: rgba(2,4,8,0.85);
+  border: 1px solid var(--red);
+  padding: 4px 12px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--red);
+  letter-spacing: 2px;
+  display: none; align-items: center; gap: 8px;
+  backdrop-filter: blur(8px);
+}
+.live-badge.visible { display: flex; }
+
+.cam-controls {
+  display: flex; gap: 12px; margin-top: 14px;
+}
+
+.btn-cam {
+  flex: 1; padding: 14px;
+  background: transparent;
+  font-family: 'Orbitron', monospace;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 3px; cursor: pointer;
+  transition: all 0.3s; border-radius: 2px;
+  clip-path: polygon(6px 0%,100% 0%,100% calc(100% - 6px),calc(100% - 6px) 100%,0% 100%,0% 6px);
+}
+
+.btn-cam-start {
+  border: 1px solid var(--green); color: var(--green);
+}
+.btn-cam-start:hover { box-shadow: var(--glow-g); background: rgba(0,255,136,0.05); }
+
+.btn-cam-stop {
+  border: 1px solid var(--red); color: var(--red);
+  display: none;
+}
+.btn-cam-stop:hover { box-shadow: var(--glow-r); background: rgba(255,45,85,0.05); }
+
+/* ── Ticker ── */
+.ticker {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  z-index: 500;
+  background: rgba(2,4,8,0.95);
+  border-top: 1px solid var(--border);
+  padding: 6px 0; overflow: hidden;
+}
+
+.ticker-inner {
+  display: flex; gap: 0;
+  white-space: nowrap;
+  animation: ticker-scroll 30s linear infinite;
+}
+
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.ticker-item {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; color: var(--dim);
+  padding: 0 40px; letter-spacing: 2px;
+  flex-shrink: 0;
+}
+
+.ticker-item span { color: var(--cyan); }
+
+@media (max-width: 768px) {
+  .result-grid { grid-template-columns: 1fr; }
+  header { padding: 14px 20px; flex-wrap: wrap; gap: 12px; }
+  main { padding: 20px 14px; }
+  .nav-tab { padding: 10px 14px; font-size: 10px; letter-spacing: 2px; }
+  .sys-name { font-size: 16px; letter-spacing: 3px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Corner brackets -->
+<div class="corner-tl"></div>
+<div class="corner-tr"></div>
+<div class="corner-bl"></div>
+<div class="corner-br"></div>
+
+<!-- Header -->
+<header>
+  <div class="logo-wrap">
+    <div class="logo-hex">🪖</div>
+  </div>
+  <div class="header-text">
+    <div class="sys-name">SENTINEL</div>
+    <div class="sys-sub">HELMET DETECTION SYSTEM v2.0 // HOG+SVM ENGINE</div>
+  </div>
+  <div class="header-right">
+    <div class="algo-badge">HOG + LBP + SVM</div>
+    <div class="status-pill">
+      <div class="pulse-dot"></div>
+      SYSTEM ONLINE
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- Nav tabs -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('image',this)">
+      <span class="tab-icon">⬡</span> IMAGE SCAN
+    </button>
+    <button class="nav-tab" onclick="switchTab('video',this)">
+      <span class="tab-icon">⬡</span> VIDEO ANALYSIS
+    </button>
+    <button class="nav-tab" onclick="switchTab('webcam',this)">
+      <span class="tab-icon">⬡</span> LIVE SURVEILLANCE
+    </button>
+  </div>
+
+  <!-- IMAGE PANEL -->
+  <div class="panel active" id="panel-image">
+    <div class="upload-zone" id="img-zone"
+         ondragover="onDrag(event,'img-zone')" ondragleave="offDrag('img-zone')"
+         ondrop="onDrop(event,'img-zone','img-input','img')">
+      <span class="uc tl"></span><span class="uc tr"></span>
+      <span class="uc bl"></span><span class="uc br"></span>
+      <input type="file" id="img-input" accept="image/*"
+             onchange="onFileChange(this,'img-zone','img')">
+      <div class="upload-icon-wrap">📷</div>
+      <div class="upload-title">DROP TARGET IMAGE HERE</div>
+      <div class="upload-sub">OR CLICK TO BROWSE FILE SYSTEM</div>
+      <div class="fmt-row">
+        <span class="fmt">JPG</span><span class="fmt">PNG</span>
+        <span class="fmt">WEBP</span><span class="fmt">BMP</span>
+      </div>
+    </div>
+    <div class="file-info" id="img-info">▶ FILE LOADED</div>
+    <button class="btn-scan" id="img-btn" onclick="detectImage()">
+      ⬡ INITIATE SCAN
+    </button>
+    <div class="scan-progress" id="img-progress">
+      <div class="progress-header">
+        <span class="progress-label">ANALYSING TARGET</span>
+        <span class="progress-pct" id="img-pct">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="img-fill" style="width:0%"></div>
+      </div>
+    </div>
+    <div class="result-wrap" id="img-result">
+      <div class="result-grid">
+        <div class="result-display">
+          <div class="result-overlay-label">SCAN COMPLETE</div>
+          <img id="img-out" src="" alt="">
+        </div>
+        <div class="stats-panel">
+          <div class="stat-block s-green">
+            <div class="stat-label">WITH HELMET</div>
+            <div class="stat-value" id="img-hc">0</div>
+            <div class="stat-unit">PERSONS DETECTED</div>
+          </div>
+          <div class="stat-block s-red">
+            <div class="stat-label">WITHOUT HELMET</div>
+            <div class="stat-value" id="img-nhc">0</div>
+            <div class="stat-unit">VIOLATION DETECTED</div>
+          </div>
+          <div class="stat-block s-cyan">
+            <div class="stat-label">TOTAL PERSONS</div>
+            <div class="stat-value" id="img-total">0</div>
+            <div class="stat-unit">IN FRAME</div>
+          </div>
+          <a class="btn-dl" id="img-dl" href="#" download>
+            ↓ EXPORT RESULT
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIDEO PANEL -->
+  <div class="panel" id="panel-video">
+    <div class="upload-zone" id="vid-zone"
+         ondragover="onDrag(event,'vid-zone')" ondragleave="offDrag('vid-zone')"
+         ondrop="onDrop(event,'vid-zone','vid-input','vid')">
+      <span class="uc tl"></span><span class="uc tr"></span>
+      <span class="uc bl"></span><span class="uc br"></span>
+      <input type="file" id="vid-input" accept="video/*"
+             onchange="onFileChange(this,'vid-zone','vid')">
+      <div class="upload-icon-wrap">🎬</div>
+      <div class="upload-title">DROP VIDEO FILE HERE</div>
+      <div class="upload-sub">PROCESSES EVERY FRAME — OUTPUTS ANNOTATED VIDEO</div>
+      <div class="fmt-row">
+        <span class="fmt">MP4</span><span class="fmt">AVI</span>
+        <span class="fmt">MOV</span><span class="fmt">MKV</span>
+      </div>
+    </div>
+    <div class="file-info" id="vid-info">▶ FILE LOADED</div>
+    <button class="btn-scan" id="vid-btn" onclick="detectVideo()">
+      ⬡ PROCESS FOOTAGE
+    </button>
+    <div class="scan-progress" id="vid-progress">
+      <div class="progress-header">
+        <span class="progress-label">PROCESSING FRAMES</span>
+        <span class="progress-pct">PLEASE WAIT...</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" style="width:100%"></div>
+      </div>
+    </div>
+    <div class="result-wrap" id="vid-result">
+      <div class="result-grid">
+        <div class="result-display">
+          <div class="result-overlay-label">PROCESSED FOOTAGE</div>
+          <video id="vid-out" controls></video>
+        </div>
+        <div class="stats-panel">
+          <div class="stat-block s-green">
+            <div class="stat-label">MAX WITH HELMET</div>
+            <div class="stat-value" id="vid-hc">0</div>
+            <div class="stat-unit">IN ANY FRAME</div>
+          </div>
+          <div class="stat-block s-red">
+            <div class="stat-label">MAX WITHOUT HELMET</div>
+            <div class="stat-value" id="vid-nhc">0</div>
+            <div class="stat-unit">VIOLATIONS DETECTED</div>
+          </div>
+          <div class="stat-block s-cyan">
+            <div class="stat-label">FRAMES PROCESSED</div>
+            <div class="stat-value" id="vid-frames">0</div>
+            <div class="stat-unit">TOTAL FRAMES</div>
+          </div>
+          <a class="btn-dl" id="vid-dl" href="#" download>
+            ↓ EXPORT FOOTAGE
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEBCAM PANEL -->
+  <div class="panel" id="panel-webcam">
+    <div class="webcam-container">
+      <div class="webcam-idle" id="cam-idle">
+        <div class="radar-wrap">
+          <div class="radar-circle"></div>
+          <div class="radar-inner"></div>
+          <div class="radar-sweep"></div>
+          <div class="radar-crosshair-h"></div>
+          <div class="radar-crosshair-v"></div>
+          <div class="radar-dot"></div>
+          <div class="radar-dot"></div>
+          <div class="radar-dot"></div>
+        </div>
+        <div class="webcam-idle-text">AWAITING CAMERA FEED<br>CLICK START TO ACTIVATE</div>
+      </div>
+      <img id="webcam-feed" src="" style="display:none">
+      <div class="live-badge" id="live-badge">
+        <div class="pulse-dot" style="background:var(--red);box-shadow:0 0 8px var(--red)"></div>
+        REC
+      </div>
+    </div>
+    <div class="cam-controls">
+      <button class="btn-cam btn-cam-start" id="btn-start" onclick="startCam()">
+        ▶ ACTIVATE CAMERA
+      </button>
+      <button class="btn-cam btn-cam-stop" id="btn-stop" onclick="stopCam()">
+        ■ TERMINATE FEED
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<!-- Ticker -->
+<div class="ticker">
+  <div class="ticker-inner" id="ticker">
+    <span class="ticker-item">SENTINEL HELMET DETECTION SYSTEM //
+      ALGORITHM: <span>HOG + LBP + SVM</span> //
+      ACCURACY: <span>94.27%</span> //
+      AUC-ROC: <span>0.9832</span> //
+      CLASSES: <span>WITH HELMET</span> /
+      <span>WITHOUT HELMET</span> //
+      STATUS: <span>ONLINE</span> //
+      ENGINE: <span>HOG + SVM</span> //
+      DATASET: <span>COMBINED</span> //
+    </span>
+    <span class="ticker-item">SENTINEL HELMET DETECTION SYSTEM //
+      ALGORITHM: <span>HOG + LBP + SVM</span> //
+      ACCURACY: <span>94.27%</span> //
+      AUC-ROC: <span>0.9832</span> //
+      CLASSES: <span>WITH HELMET</span> /
+      <span>WITHOUT HELMET</span> //
+      STATUS: <span>ONLINE</span> //
+      ENGINE: <span>HOG + SVM</span> //
+      DATASET: <span>COMBINED</span> //
+    </span>
+  </div>
+</div>
+
+<script>
+// ── Tab switching ─────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+  if (name !== 'webcam') stopCam();
+}
+
+// ── Drag & drop ───────────────────────────────
+function onDrag(e, id) { e.preventDefault(); document.getElementById(id).classList.add('dragover'); }
+function offDrag(id)    { document.getElementById(id).classList.remove('dragover'); }
+function onDrop(e, zoneId, inputId, type) {
+  e.preventDefault(); offDrag(zoneId);
+  const files = e.dataTransfer.files;
+  if (files.length) {
+    const inp = document.getElementById(inputId);
+    inp.files = files;
+    onFileChange(inp, zoneId, type);
+  }
+}
+
+// ── File selected ─────────────────────────────
+function onFileChange(input, zoneId, type) {
+  if (!input.files.length) return;
+  const info = document.getElementById(type+'-info');
+  info.textContent = '▶ FILE LOADED: ' + input.files[0].name.toUpperCase();
+  info.classList.add('visible');
+  document.getElementById(type+'-btn').classList.add('visible');
+  document.getElementById(type+'-result').classList.remove('visible');
+  document.getElementById(type+'-progress').classList.remove('visible');
+}
+
+// ── Image detection ───────────────────────────
+function detectImage() {
+  const input = document.getElementById('img-input');
+  if (!input.files.length) return;
+  const fd = new FormData();
+  fd.append('file', input.files[0]);
+
+  const prog  = document.getElementById('img-progress');
+  const fill  = document.getElementById('img-fill');
+  const pct   = document.getElementById('img-pct');
+  const btn   = document.getElementById('img-btn');
+
+  prog.classList.add('visible');
+  document.getElementById('img-result').classList.remove('visible');
+  btn.disabled = true;
+
+  // Fake progress animation
+  let p = 0;
+  const iv = setInterval(() => {
+    p = Math.min(p + Math.random()*15, 85);
+    fill.style.width = p+'%';
+    pct.textContent  = Math.round(p)+'%';
+  }, 200);
+
+  fetch('/detect_image', { method:'POST', body:fd })
+    .then(r => r.json())
+    .then(data => {
+      clearInterval(iv);
+      fill.style.width = '100%'; pct.textContent = '100%';
+      setTimeout(() => {
+        prog.classList.remove('visible');
+        btn.disabled = false;
+        if (data.error) { alert('ERROR: '+data.error); return; }
+        document.getElementById('img-out').src         = data.result_url+'?t='+Date.now();
+        document.getElementById('img-hc').textContent    = data.with_helmet;
+        document.getElementById('img-nhc').textContent   = data.without_helmet;
+        document.getElementById('img-total').textContent = data.total;
+        document.getElementById('img-dl').href           = data.result_url;
+        document.getElementById('img-result').classList.add('visible');
+      }, 500);
+    })
+    .catch(e => {
+      clearInterval(iv);
+      alert('SCAN FAILED: '+e);
+      btn.disabled = false;
+      prog.classList.remove('visible');
+    });
+}
+
+// ── Video detection ───────────────────────────
+function detectVideo() {
+  const input = document.getElementById('vid-input');
+  if (!input.files.length) return;
+  const fd = new FormData();
+  fd.append('file', input.files[0]);
+
+  const prog = document.getElementById('vid-progress');
+  const btn  = document.getElementById('vid-btn');
+
+  prog.classList.add('visible');
+  document.getElementById('vid-result').classList.remove('visible');
+  btn.disabled = true;
+
+  fetch('/detect_video', { method:'POST', body:fd })
+    .then(r => r.json())
+    .then(data => {
+      prog.classList.remove('visible');
+      btn.disabled = false;
+      if (data.error) { alert('ERROR: '+data.error); return; }
+      document.getElementById('vid-out').src          = data.result_url+'?t='+Date.now();
+      document.getElementById('vid-hc').textContent     = data.with_helmet;
+      document.getElementById('vid-nhc').textContent    = data.without_helmet;
+      document.getElementById('vid-frames').textContent = data.frames;
+      document.getElementById('vid-dl').href            = data.result_url;
+      document.getElementById('vid-result').classList.add('visible');
+    })
+    .catch(e => {
+      alert('PROCESSING FAILED: '+e);
+      btn.disabled = false;
+      prog.classList.remove('visible');
+    });
+}
+
+// ── Webcam ────────────────────────────────────
+let camActive = false;
+
+function startCam() {
+  camActive = true;
+  const feed = document.getElementById('webcam-feed');
+  feed.src = '/webcam_feed';
+  feed.style.display = 'block';
+  document.getElementById('cam-idle').style.display   = 'none';
+  document.getElementById('live-badge').classList.add('visible');
+  document.getElementById('btn-start').style.display  = 'none';
+  document.getElementById('btn-stop').style.display   = 'block';
+}
+
+function stopCam() {
+  if (!camActive) return;
+  camActive = false;
+  const feed = document.getElementById('webcam-feed');
+  feed.src = ''; feed.style.display = 'none';
+  document.getElementById('cam-idle').style.display   = 'flex';
+  document.getElementById('live-badge').classList.remove('visible');
+  document.getElementById('btn-start').style.display  = 'block';
+  document.getElementById('btn-stop').style.display   = 'none';
+}
+
+// Click on upload zone
+document.getElementById('img-zone').addEventListener('click',
+  () => document.getElementById('img-input').click());
+document.getElementById('vid-zone').addEventListener('click',
+  () => document.getElementById('vid-input').click());
+</script>
+</body>
+</html>
