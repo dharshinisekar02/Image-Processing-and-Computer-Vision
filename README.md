@@ -1,11 +1,11 @@
-# 🪖 SENTINEL — Helmet & Safety Gear Detection System
+#  SENTINEL — Helmet & Safety Gear Detection System
 
 > **HOG + LBP + SVM Engine** | Two-Wheeler Rider Compliance Monitoring  
 > Course: AD23B31 - Image Processing and Computer Vision | Rajalakshmi Engineering College
 
 ---
 
-## 📌 Overview
+##  Overview
 
 **SENTINEL** is an automated helmet detection system for two-wheeler riders, built to assist traffic enforcement with real-time compliance monitoring. It uses a **two-stage hybrid pipeline** — YOLOv8n for person detection, and a classical HOG + LBP + SVM pipeline for helmet classification — deployed as a **Flask web application**.
 
@@ -16,7 +16,7 @@
 
 ---
 
-## 🧠 How It Works
+##  How It Works
 
 ```
 Input Frame
@@ -48,7 +48,7 @@ Output: "With Helmet" (green box) / "Without Helmet" (red box) + confidence scor
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 sentinel/
@@ -104,7 +104,7 @@ Then open `http://localhost:5000` in your browser.
 
 ---
 
-## 🚀 Usage
+##  Usage
 
 The web interface has three modes, selectable via tabs:
 
@@ -121,7 +121,7 @@ Each output shows:
 
 ---
 
-## 🏋️ Model Training
+##  Model Training
 
 Training uses two combined datasets:
 - **BikesHelmets** dataset (Pascal VOC XML annotations)
@@ -150,7 +150,7 @@ python train.py
 
 ---
 
-## 📊 Performance
+##  Performance
 
 | Metric | Value |
 |--------|-------|
@@ -174,7 +174,7 @@ Actual No Helmet    781         40
 
 ---
 
-## 🖥️ Hardware Requirements
+##  Hardware Requirements
 
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
@@ -187,7 +187,7 @@ Actual No Helmet    781         40
 
 ---
 
-## ⚠️ Known Limitations
+##  Known Limitations
 
 - **Heuristic ROI**: Head region computed from body bbox — may fail for extreme poses or partial frames
 - **Person detection dependency**: Missed detections by YOLOv8 = missed helmet checks
@@ -198,7 +198,7 @@ Actual No Helmet    781         40
 
 ---
 
-## 🔮 Future Enhancements
+##  Future Enhancements
 
 - [ ] Dedicated head detector (RetinaFace / fine-tuned YOLOv8-head) to replace heuristic ROI
 - [ ] Lightweight CNN classifier (MobileNetV3 / EfficientNet-B0) as SVM replacement
@@ -211,7 +211,7 @@ Actual No Helmet    781         40
 
 ---
 
-## 📚 References
+##  References
 
 1. Dalal & Triggs — *HOG for Human Detection*, CVPR 2005
 2. Ojala et al. — *Local Binary Patterns*, IEEE TPAMI 2002
@@ -224,7 +224,7 @@ Actual No Helmet    781         40
 
 ---
 
-## 👤 Author
+##  Author
 
 **Dharshini R S** (2116230701076)  
 Department of Computer Science Engineering  
